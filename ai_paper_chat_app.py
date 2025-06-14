@@ -19,15 +19,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 st.set_page_config(page_title="AI 논문 분석 Q&A", layout="wide")
 
-LANGUAGES = {
-    "한국어": "ko",
-    "English": "en"
-}
-ANSWER_LANGUAGES = {
-    "Auto/문서 기준": "auto",
-    "한국어": "Korean",
-    "English": "English"
-}
+LANGUAGES = {"한국어": "ko", "English": "en"}
+ANSWER_LANGUAGES = {"Auto/문서 기준": "auto", "한국어": "Korean", "English": "English"}
 
 def get_ui_labels(lang_code):
     if lang_code == "en":
@@ -47,7 +40,7 @@ def get_ui_labels(lang_code):
             "answer_error": "Error during answer generation:",
             "need_upload": "Please upload and analyze a paper first.",
             "history_header": "Q&A History",
-            "already_analyzed": "This paper has already been analyzed. Ask a new question or upload a different paper.",
+            "already_analyzed": "This paper has been analyzed.",
             "current_paper": "Currently analyzing:",
             "ui_lang_label": "🌐 UI Language",
             "ans_lang_label": "🤖 Answer Language"
@@ -69,7 +62,7 @@ def get_ui_labels(lang_code):
             "answer_error": "답변 생성 중 오류 발생:",
             "need_upload": "먼저 논문을 업로드하고 분석해주세요.",
             "history_header": "Q&A 기록",
-            "already_analyzed": "이미 분석된 논문입니다. 새로운 질문을 하시거나 다른 논문을 업로드해주세요.",
+            "already_analyzed": "이미 분석된 논문입니다.",
             "current_paper": "현재 분석 중인 논문:",
             "ui_lang_label": "🌐 UI 언어",
             "ans_lang_label": "🤖 답변 언어"
@@ -80,16 +73,17 @@ def get_ui_labels(lang_code):
 # --------------------------------------------------------------------------
 
 def get_file_hash(file_obj):
+    """파일의 내용으로 MD5 해시를 생성하여 반환합니다."""
     file_bytes = file_obj.getvalue()
     return hashlib.md5(file_bytes).hexdigest()
 
 @st.cache_data(show_spinner=False)
 def get_text_from_doc(file_bytes, filename):
+    """업로드된 파일 바이트에서 텍스트를 추출합니다."""
     suffix = os.path.splitext(filename)[-1].lower()
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
         tmp_file.write(file_bytes)
         tmp_file_path = tmp_file.name
-
     try:
         if suffix == ".pdf":
             loader = PyPDFLoader(tmp_file_path)
@@ -107,60 +101,59 @@ def get_text_from_doc(file_bytes, filename):
 
 @st.cache_resource(show_spinner=False)
 def create_qa_chain(_text, answer_language):
+    """텍스트와 답변 언어를 받아 LangChain QA 체인을 생성하고 캐싱합니다."""
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
     chunks = text_splitter.split_text(_text)
     embeddings = OpenAIEmbeddings(openai_api_key=st.secrets["OPENAI_API_KEY"])
     vector_store = FAISS.from_texts(chunks, embeddings)
 
-    prompt_template = """
-    Use the following pieces of context to answer the question at the end.
-    If you don't know the answer, just say that you don't know, don't try to make up an answer.
-
-    {context}
-
-    Question: {question}
-    """
+    prompt_template = (
+        "Use the following pieces of context to answer the question at the end.\n"
+        "If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n"
+        "{context}\n\nQuestion: {question}\n"
+    )
     if answer_language != "auto":
         prompt_template += f"\nHelpful Answer (MUST be in {answer_language}):"
     else:
         prompt_template += "\nHelpful Answer:"
 
     PROMPT = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-    llm = ChatOpenAI(
-        model_name="gpt-4o",
-        temperature=0.7,
-        openai_api_key=st.secrets["OPENAI_API_KEY"]
-    )
-    qa_chain = RetrievalQA.from_chain_type(
+    llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7, openai_api_key=st.secrets["OPENAI_API_KEY"])
+    return RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
         retriever=vector_store.as_retriever(),
         chain_type_kwargs={"prompt": PROMPT}
     )
-    return qa_chain
 
 # --------------------------------------------------------------------------
 # 3. Streamlit 세션 상태(Session State) 초기화
 # --------------------------------------------------------------------------
 
-if "qa_chain" not in st.session_state: st.session_state.qa_chain = None
-if "history" not in st.session_state: st.session_state.history = []
-if "analyzed_filehash" not in st.session_state: st.session_state.analyzed_filehash = None
-if "analyzed_filename" not in st.session_state: st.session_state.analyzed_filename = None
-if "language" not in st.session_state: st.session_state.language = "ko"
-if "answer_language" not in st.session_state: st.session_state.answer_language = "auto"
+if "qa_chain" not in st.session_state:
+    st.session_state.qa_chain = None
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "analyzed_filehash" not in st.session_state:
+    st.session_state.analyzed_filehash = None
+if "analyzed_filename" not in st.session_state:
+    st.session_state.analyzed_filename = None
+if "language" not in st.session_state:
+    st.session_state.language = "ko"
+if "answer_language" not in st.session_state:
+    st.session_state.answer_language = "auto"
+if "last_answer_language" not in st.session_state:
+    st.session_state.last_answer_language = st.session_state.answer_language
 
 # --------------------------------------------------------------------------
-# 4. 메인 화면 UI 구성 (사이드바 없이 상단에 설정)
+# 4. 메인 화면 UI 구성
 # --------------------------------------------------------------------------
 
 labels = get_ui_labels(st.session_state.language)
 st.title(labels["title"])
 st.markdown("---")
 
-# --- 설정 및 업로드 섹션 ---
 st.header(labels["upload_header"])
-
 col1, col2 = st.columns(2)
 with col1:
     selected_lang_key = st.selectbox(
@@ -177,30 +170,33 @@ with col2:
     )
     st.session_state.answer_language = ANSWER_LANGUAGES[selected_ans_lang_key]
 
-# 언어 변경 즉시 라벨 동기화
+# UI 언어 변경 시 라벨 즉시 업데이트
 labels = get_ui_labels(st.session_state.language)
 
 uploaded_file = st.file_uploader(labels["file_uploader"], type=['pdf', 'docx', 'txt'])
 analyze_button = st.button(labels["analyze_btn"], type="primary", use_container_width=True)
 
+# 답변 언어가 변경되었는지 확인
+answer_language_changed = st.session_state.last_answer_language != st.session_state.answer_language
+
 if analyze_button:
     if uploaded_file is not None:
         current_file_hash = get_file_hash(uploaded_file)
-        if current_file_hash != st.session_state.analyzed_filehash:
+        # 파일이 변경되었거나 답변 언어가 변경되었을 때 새로 분석
+        if current_file_hash != st.session_state.analyzed_filehash or answer_language_changed:
             with st.spinner(labels["analyzing"]):
                 try:
                     file_bytes = uploaded_file.getvalue()
                     extracted_text = get_text_from_doc(file_bytes, uploaded_file.name)
-                    st.session_state.qa_chain = create_qa_chain(
-                        extracted_text, st.session_state.answer_language
-                    )
+                    st.session_state.qa_chain = create_qa_chain(extracted_text, st.session_state.answer_language)
                     st.session_state.analyzed_filename = uploaded_file.name
                     st.session_state.analyzed_filehash = current_file_hash
                     st.session_state.history = []
+                    st.session_state.last_answer_language = st.session_state.answer_language
                     st.success(labels["analyze_success"])
                     st.rerun()
                 except Exception as e:
-                    st.error(f"{labels['analyze_error']} {e}")
+                    st.error(f"{labels['analyze_error']} {str(e)[:300]}")
         else:
             st.info(labels["already_analyzed"])
     else:
@@ -208,15 +204,26 @@ if analyze_button:
 
 st.markdown("---")
 
+# --------------------------------------------------------------------------
+# 5. Q&A 및 기록 표시 섹션
+# --------------------------------------------------------------------------
+
 if st.session_state.qa_chain:
     st.header(labels["ask_header"])
-    st.markdown(f"**{labels['current_paper']}** `{st.session_state.analyzed_filename}`")
+    # 파일명이 너무 길면 중간 생략
+    max_filename_len = 36
+    show_filename = (
+        st.session_state.analyzed_filename if st.session_state.analyzed_filename and len(st.session_state.analyzed_filename) <= max_filename_len
+        else (st.session_state.analyzed_filename[:16] + "..." + st.session_state.analyzed_filename[-16:]) if st.session_state.analyzed_filename else "없음"
+    )
+    st.markdown(f"**{labels['current_paper']}** `{show_filename}`")
 
     with st.form(key="question_form", clear_on_submit=True):
         query = st.text_input(
             "질문:",
             placeholder=labels["ask_placeholder"],
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            autofocus=True  # Streamlit 1.24+ 지원
         )
         submitted = st.form_submit_button("질문하기")
 
@@ -226,10 +233,9 @@ if st.session_state.qa_chain:
                 response = st.session_state.qa_chain.invoke(query)
                 st.session_state.history.append({"question": query, "answer": response['result']})
             except Exception as e:
-                st.error(f"{labels['answer_error']} {e}")
+                st.error(f"{labels['answer_error']} {str(e)[:300]}")
                 st.session_state.history.append({"question": query, "answer": f"Error: {e}"})
 
-    # Q&A 기록 표시 (질문 길이 제한)
     if st.session_state.history:
         st.subheader(labels["history_header"])
         MAX_Q_LEN = 60
@@ -241,3 +247,4 @@ if st.session_state.qa_chain:
                 st.markdown(f"**A:** {qa['answer']}")
 else:
     st.info(labels["need_upload"])
+
