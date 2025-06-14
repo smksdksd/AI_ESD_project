@@ -171,16 +171,18 @@ with col2:
 # UI 언어 변경 시 라벨 즉시 업데이트
 labels = get_ui_labels(st.session_state.language)
 
-uploaded_file = st.file_uploader(labels["file_uploader"], type=['pdf', 'docx', 'txt'])
+uploaded_file = st.file_uploader(
+    labels["file_uploader"],
+    type=['pdf', 'docx', 'txt'],
+    help="최대 20MB 파일 권장 (용량이 클수록 분석이 오래 걸릴 수 있습니다)"
+)
 analyze_button = st.button(labels["analyze_btn"], type="primary", use_container_width=True)
 
-# 답변 언어가 변경되었는지 확인
 answer_language_changed = st.session_state.last_answer_language != st.session_state.answer_language
 
 if analyze_button:
     if uploaded_file is not None:
         current_file_hash = get_file_hash(uploaded_file)
-        # 파일이 변경되었거나 답변 언어가 변경되었을 때 새로 분석
         if current_file_hash != st.session_state.analyzed_filehash or answer_language_changed:
             with st.spinner(labels["analyzing"]):
                 try:
@@ -243,5 +245,11 @@ if st.session_state.qa_chain:
             q_number = total - i
             with st.expander(f"Q{q_number}: {short_q}"):
                 st.markdown(f"**A:** {qa['answer']}")
+        # Q&A 다운로드 버튼
+        st.download_button(
+            "Q&A 기록 다운로드",
+            data="\n\n".join([f"Q: {h['question']}\nA: {h['answer']}" for h in st.session_state.history]),
+            file_name="qa_history.txt"
+        )
 else:
     st.info(labels["need_upload"])
