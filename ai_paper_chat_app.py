@@ -156,8 +156,6 @@ if "last_answer_language" not in st.session_state:
     st.session_state.last_answer_language = st.session_state.answer_language
 if "answer_language_changed" not in st.session_state:
     st.session_state.answer_language_changed = False
-if "query_input" not in st.session_state:
-    st.session_state.query_input = ""  # 질문 입력창 상태
 
 # 답변 언어 변경 여부 감지
 st.session_state.answer_language_changed = (
@@ -217,7 +215,7 @@ with st.sidebar:
             st.warning(labels["upload_first"])
 
 # --------------------------------------------------------------------------
-# 5. 메인 화면 UI 구성
+# 5. 메인 화면 UI 구성 (st.form 사용)
 # --------------------------------------------------------------------------
 
 st.title(labels["title"])
@@ -230,22 +228,21 @@ else:
     file_display_name = st.session_state.analyzed_filename or "없음"
     st.markdown(f"**{labels['current_paper']}** `{file_display_name}`")
 
-    query = st.text_input(
-        labels["ask_placeholder"],
-        key="query_input"
-    )
+    with st.form(key="question_form", clear_on_submit=True):
+        query = st.text_input(
+            labels["ask_placeholder"],
+        )
+        submitted = st.form_submit_button("질문하기")
 
-    if query:
+    if submitted and query:
         with st.spinner(labels["wait_answer"]):
             try:
                 response = st.session_state.qa_chain.invoke(query)
                 answer = response['result']
                 st.session_state.history.append({"question": query, "answer": answer})
-                st.session_state.query_input = ""  # 입력창 자동 비우기
             except Exception as e:
                 st.error(f"{labels['answer_error']} {e}")
                 st.session_state.history.append({"question": query, "answer": f"Error: {e}"})
-                st.session_state.query_input = ""
 
     # Q&A 기록 표시 (expander로 접기 기능)
     if st.session_state.history:
