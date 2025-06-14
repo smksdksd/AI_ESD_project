@@ -45,7 +45,7 @@ def get_ui_labels(lang_code):
             "ui_lang_label": "🌐 UI Language",
             "ans_lang_label": "🤖 Answer Language"
         }
-    else: # 한국어
+    else:  # 한국어
         return {
             "title": "📄 AI 논문 분석 및 Q&A",
             "upload_header": "1. 설정 및 업로드",
@@ -106,7 +106,6 @@ def create_qa_chain(_text, answer_language):
     chunks = text_splitter.split_text(_text)
     embeddings = OpenAIEmbeddings(openai_api_key=st.secrets["OPENAI_API_KEY"])
     vector_store = FAISS.from_texts(chunks, embeddings)
-
     prompt_template = (
         "Use the following pieces of context to answer the question at the end.\n"
         "If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n"
@@ -116,7 +115,6 @@ def create_qa_chain(_text, answer_language):
         prompt_template += f"\nHelpful Answer (MUST be in {answer_language}):"
     else:
         prompt_template += "\nHelpful Answer:"
-
     PROMPT = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7, openai_api_key=st.secrets["OPENAI_API_KEY"])
     return RetrievalQA.from_chain_type(
@@ -222,8 +220,8 @@ if st.session_state.qa_chain:
         query = st.text_input(
             "질문:",
             placeholder=labels["ask_placeholder"],
-            label_visibility="collapsed",
-            autofocus=True  # Streamlit 1.24+ 지원
+            label_visibility="collapsed"
+            # autofocus=True  # TypeError 방지를 위해 옵션 제거
         )
         submitted = st.form_submit_button("질문하기")
 
@@ -247,4 +245,3 @@ if st.session_state.qa_chain:
                 st.markdown(f"**A:** {qa['answer']}")
 else:
     st.info(labels["need_upload"])
-
