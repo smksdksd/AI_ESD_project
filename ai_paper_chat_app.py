@@ -19,8 +19,19 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 st.set_page_config(page_title="AI 논문 분석 Q&A", layout="wide")
 
-LANGUAGES = {"한국어": "ko", "English": "en"}
-ANSWER_LANGUAGES = {"Auto/문서 기준": "auto", "한국어": "Korean", "English": "English"}
+LANGUAGES = {
+    "한국어": "ko",
+    "English": "en",
+    "日本語": "ja",
+    "中文": "zh"
+}
+ANSWER_LANGUAGES = {
+    "Auto/문서 기준": "auto",
+    "한국어": "Korean",
+    "English": "English",
+    "日本語": "Japanese",
+    "中文": "Chinese"
+}
 
 def get_ui_labels(lang_code):
     if lang_code == "en":
@@ -45,7 +56,51 @@ def get_ui_labels(lang_code):
             "ui_lang_label": "🌐 UI Language",
             "ans_lang_label": "🤖 Answer Language"
         }
-    else:  # 한국어
+    elif lang_code == "ja":
+        return {
+            "title": "📄 AI論文分析 & Q&A",
+            "upload_header": "1. 設定とアップロード",
+            "file_uploader": "ファイルを選択してください (PDF, DOCX, TXT)",
+            "analyze_btn": "解析開始",
+            "analyzing": "論文を解析中です...しばらくお待ちください。",
+            "analyze_success": "解析が完了しました！質問できます。",
+            "analyze_error": "解析中にエラーが発生しました：",
+            "upload_first": "まずファイルをアップロードしてください。",
+            "ask_header": "2. 質問する",
+            "ask_placeholder": "例：この論文の主な貢献は何ですか？",
+            "wait_answer": "ChatGPTが回答を生成しています...",
+            "answer_header": "🤖 ChatGPTの回答",
+            "answer_error": "回答生成中にエラーが発生しました：",
+            "need_upload": "まず論文をアップロードして解析してください。",
+            "history_header": "Q&A履歴",
+            "already_analyzed": "この論文はすでに解析されています。",
+            "current_paper": "現在解析中の論文：",
+            "ui_lang_label": "🌐 UI言語",
+            "ans_lang_label": "🤖 回答言語"
+        }
+    elif lang_code == "zh":
+        return {
+            "title": "📄 AI论文分析与问答",
+            "upload_header": "1. 设置与上传",
+            "file_uploader": "请选择文件 (PDF, DOCX, TXT)",
+            "analyze_btn": "开始分析",
+            "analyzing": "正在分析论文……请稍候。",
+            "analyze_success": "分析完成！现在可以提问。",
+            "analyze_error": "分析时出错：",
+            "upload_first": "请先上传文件。",
+            "ask_header": "2. 提问",
+            "ask_placeholder": "例如：这篇论文的主要贡献是什么？",
+            "wait_answer": "ChatGPT正在生成答案……",
+            "answer_header": "🤖 ChatGPT答案",
+            "answer_error": "生成答案时出错：",
+            "need_upload": "请先上传并分析论文。",
+            "history_header": "Q&A记录",
+            "already_analyzed": "该论文已被分析。",
+            "current_paper": "当前分析的论文：",
+            "ui_lang_label": "🌐 UI语言",
+            "ans_lang_label": "🤖 答案语言"
+        }
+    else:  # "ko"
         return {
             "title": "📄 AI 논문 분석 및 Q&A",
             "upload_header": "1. 설정 및 업로드",
@@ -68,6 +123,9 @@ def get_ui_labels(lang_code):
             "ans_lang_label": "🤖 답변 언어"
         }
 
+# --------------------------------------------------------------------------
+# 이하 코드는 기존과 동일 (생략)
+# --------------------------------------------------------------------------
 # --------------------------------------------------------------------------
 # 2. 핵심 기능 함수 정의 (캐싱 적용)
 # --------------------------------------------------------------------------
