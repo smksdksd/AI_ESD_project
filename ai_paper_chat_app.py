@@ -102,7 +102,7 @@ def get_text_from_doc(uploaded_file):
         os.remove(tmp_file_path)
     return text
 
-@st.cache_data(show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def create_qa_chain(_text, answer_language):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
     chunks = text_splitter.split_text(_text)
@@ -154,6 +154,10 @@ if "answer_language" not in st.session_state:
     st.session_state.answer_language = "auto"
 if "last_answer_language" not in st.session_state:
     st.session_state.last_answer_language = st.session_state.answer_language
+if "answer_language_changed" not in st.session_state:
+    st.session_state.answer_language_changed = False
+if "query_input" not in st.session_state:
+    st.session_state.query_input = ""  # 질문 입력창 상태
 
 # 답변 언어 변경 여부 감지
 st.session_state.answer_language_changed = (
@@ -191,7 +195,6 @@ with st.sidebar:
     if st.button(labels["analyze_btn"]):
         if uploaded_file is not None:
             current_file_hash = get_file_hash(uploaded_file)
-            # 파일이 변경되었거나 답변 언어가 변경되었을 때만 새로 분석
             if (
                 current_file_hash != st.session_state.analyzed_filehash
                 or st.session_state.answer_language_changed
